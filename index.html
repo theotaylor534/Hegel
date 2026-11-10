@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hegel · Lesefeed</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hegel">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap">
+<script src="jszip.min.js"></script>
+<style>
+/* Layout: a timeline. Each sitting is a thread, each sentence a post down the
+   thread line. Dark only, by request. */
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#000; --raised:#16181c; --line:#2f3336; --hover:#080808;
+  --fg:#e7e9ea; --dim:#71767b; --accent:#1d9bf0; --accent-ink:#fff;
+  --gloss:#8ecdf7; --saved:#f91880;
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Source Serif 4",Charter,Georgia,serif;
+  --sz:1.0625rem;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);
+     -webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
+     z-index:40;background:rgba(0,0,0,.92)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- header ---------- */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;
+       background:rgba(0,0,0,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.wrap{max-width:38rem;margin:0 auto;
+      padding-left:max(16px,env(safe-area-inset-left,0px));
+      padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;gap:.7rem;padding-block:.6rem}
+.ava{width:2.1rem;height:2.1rem;border-radius:50%;flex:none;display:grid;place-items:center;
+     background:#3d1f2b;color:#f3c6d5;font-weight:700;font-size:.95rem;font-family:var(--serif)}
+.who{min-width:0;flex:1}
+.who b{display:block;font-size:.97rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who span{display:block;font-size:.8rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.aa{font-size:1.05rem;padding:.3rem .5rem;border-radius:999px;color:var(--fg)}
+.aa:hover{background:var(--raised)}
+nav{display:flex}
+nav button{flex:1;padding:.85rem 0 .7rem;color:var(--dim);font-size:.88rem;font-weight:600;position:relative}
+nav button[aria-selected="true"]{color:var(--fg)}
+nav button[aria-selected="true"]::after{content:"";position:absolute;left:50%;transform:translateX(-50%);
+     bottom:0;width:3.4rem;height:4px;border-radius:999px;background:var(--accent)}
+.rail{display:none}
+.rail i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s ease}
+
+/* ---------- posts ---------- */
+main{max-width:38rem;margin:0 auto;padding-bottom:45vh}
+.post{display:grid;grid-template-columns:2.6rem 1fr;gap:.75rem;
+      padding-left:max(16px,env(safe-area-inset-left,0px));
+      padding-right:max(16px,env(safe-area-inset-right,0px));
+      padding-block:.75rem;border-bottom:1px solid var(--line);position:relative}
+.post.cont{border-bottom:0;padding-top:0;padding-bottom:.1rem}
+.post.last{border-bottom:1px solid var(--line);padding-bottom:.75rem}
+.gutter{position:relative}
+.gutter .ava{width:2.6rem;height:2.6rem;font-size:1.1rem}
+.thread{position:absolute;left:1.25rem;top:0;bottom:-.1rem;width:2px;background:var(--line)}
+.post.cont .thread{top:-.4rem}
+.meta{display:flex;align-items:baseline;gap:.3rem;flex-wrap:wrap;font-size:.95rem;margin-bottom:.15rem}
+.meta b{font-weight:700}
+.meta .tick{width:1rem;height:1rem;flex:none;align-self:center;fill:var(--accent)}
+.meta .at,.meta .dot,.meta .ago{color:var(--dim);font-weight:400;font-size:.9rem}
+.body{font-size:var(--sz);line-height:1.45;overflow-wrap:break-word}
+.de{margin:0;hyphens:none;-webkit-hyphens:none}
+.de .br{display:block}
+.gl{list-style:none;margin:.55rem 0 0;padding:0;font-size:.82rem;line-height:1.5;color:var(--dim)}
+.gl b{color:var(--gloss);font-weight:600}
+.en{font-family:var(--serif);font-style:italic;color:var(--dim);font-size:.95rem;line-height:1.45;
+    margin:.6rem 0 0;padding-left:.75rem;border-left:2px solid var(--line)}
+.en.open{margin-top:0}
+.il{white-space:pre-line;font-size:.8rem;color:#8b919a;margin:.3rem 0 0;line-height:1.5}
+.cap{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:1rem 0 .3rem}
+.de.echo{margin:0;color:var(--fg)}
+.warmhead{padding-block:1.6rem .4rem;border-bottom:0}
+.eyebrow.warm{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:#4bbf8a}
+.de.warm{color:#eef1f4}
+.w{cursor:pointer;-webkit-tap-highlight-color:rgba(29,155,240,.25)}
+.w:active{background:rgba(29,155,240,.22);border-radius:3px}
+.pop{position:absolute;z-index:50;max-width:min(20rem,calc(100vw - 2rem));
+     background:var(--raised);border:1px solid var(--line);border-radius:.7rem;
+     padding:.6rem .75rem;box-shadow:0 6px 24px rgba(0,0,0,.7);
+     display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.pop b{font-size:.95rem}
+.pop span{color:var(--dim);font-size:.88rem;min-width:0}
+.pop .none{font-style:italic}
+.pop .say{color:var(--dim);display:inline-flex;margin-left:auto}
+.pop .say svg{width:1.05rem;height:1.05rem;fill:currentColor}
+.note{position:fixed;left:50%;transform:translateX(-50%);z-index:60;
+      bottom:calc(5.4rem + env(safe-area-inset-bottom,0px));
+      background:var(--accent);color:#fff;font-size:.82rem;font-weight:600;
+      padding:.6rem .9rem;border-radius:999px;max-width:calc(100vw - 2rem);
+      box-shadow:0 4px 18px rgba(0,0,0,.6);transition:opacity .5s}
+.note.go{opacity:0}
+h2.ch{font-size:1.25rem;line-height:1.3;margin:.2rem 0 .35rem;text-wrap:balance}
+.sub{color:var(--dim);font-size:.85rem;margin:.45rem 0 0}
+.ten{color:var(--dim);font-size:.9rem;font-style:italic;font-family:var(--serif);margin:.3rem 0 0;line-height:1.35}
+
+.acts{display:flex;align-items:center;gap:.25rem;margin:.5rem 0 -.15rem;max-width:22rem}
+.act{display:inline-flex;align-items:center;gap:.3rem;color:var(--dim);font-size:.78rem;
+     padding:.35rem .45rem;border-radius:999px;line-height:1;font-variant-numeric:tabular-nums}
+.act svg{width:1.05rem;height:1.05rem;fill:currentColor}
+.act:hover{color:var(--accent);background:rgba(29,155,240,.1)}
+.act.mark:hover{color:var(--saved);background:rgba(249,24,128,.1)}
+.act.on{color:var(--accent)}
+.act.mark.on{color:var(--saved)}
+.act.wide{margin-left:auto;padding-right:0}
+.act.wide:hover{background:none}
+
+/* ---------- stop card, intro, lists ---------- */
+.stop{text-align:center;padding-block:2.4rem;border-bottom:1px solid var(--line)}
+.stop b{display:block;font-size:1rem;margin-bottom:.3rem}
+.stop span{color:var(--dim);font-size:.85rem}
+.intro .body p{margin:0 0 .7rem}
+.pill{display:inline-block;background:var(--fg);color:#000;font-weight:700;font-size:.9rem;
+      padding:.5rem 1rem;border-radius:999px;margin-top:.3rem}
+.drop{border:1px dashed var(--line);border-radius:1rem;padding:1.1rem;text-align:center;
+      color:var(--dim);font-size:.86rem;margin-top:.6rem}
+.drop.on{border-color:var(--accent);background:rgba(29,155,240,.08);color:var(--fg)}
+.row{display:flex;gap:.8rem;align-items:flex-start;
+     padding-left:max(16px,env(safe-area-inset-left,0px));
+     padding-right:max(16px,env(safe-area-inset-right,0px));
+     padding-block:.85rem;border-bottom:1px solid var(--line);width:100%;text-align:left}
+.row:hover{background:var(--hover)}
+.row .n{width:2.6rem;flex:none;color:var(--dim);font-size:.8rem;font-variant-numeric:tabular-nums;padding-top:.15rem}
+.row .t{min-width:0;flex:1}
+.row .t b{display:block;font-size:.95rem;font-weight:600;line-height:1.3}
+.row .t span{display:block;color:var(--dim);font-size:.8rem;margin-top:.15rem}
+.row .t .snip{color:var(--fg);font-size:.92rem;line-height:1.4;margin-top:.2rem}
+.badge{font-size:.72rem;color:var(--accent);border:1px solid var(--accent);border-radius:999px;
+       padding:.1rem .45rem;align-self:flex-start;margin-top:.15rem}
+.empty{color:var(--dim);font-size:.9rem;padding-block:3rem;text-align:center}
+
+.fab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));
+     bottom:calc(1.1rem + env(safe-area-inset-bottom,0px));z-index:25;
+     width:3.4rem;height:3.4rem;border-radius:50%;background:var(--accent);color:var(--accent-ink);
+     display:grid;place-items:center;box-shadow:0 2px 14px rgba(0,0,0,.6)}
+.fab svg{width:1.5rem;height:1.5rem;fill:currentColor}
+.earlier{display:block;width:100%;color:var(--accent);font-size:.9rem;padding-block:.9rem;
+     border-bottom:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="ava" id="ava">L</div>
+      <div class="who"><b id="bk">Lesefeed</b><span id="pos">sample</span></div>
+      <button class="aa" id="aa" title="Text size">Aa</button>
+    </div>
+    <nav role="tablist">
+      <button role="tab" aria-selected="true" data-v="reading">Reading</button>
+      <button role="tab" aria-selected="false" data-v="sittings">Sittings</button>
+      <button role="tab" aria-selected="false" data-v="saved">Saved</button>
+    </nav>
+  </div>
+  <div class="rail"><i id="rail"></i></div>
+</header>
+
+<main>
+  <div id="reading"></div>
+  <div id="sittings" hidden></div>
+  <div id="saved" hidden></div>
+</main>
+
+<input type="file" id="file" accept=".epub,application/epub+zip" hidden>
+<button class="fab" id="fab" title="Open an EPUB">
+  <svg viewBox="0 0 24 24"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></svg>
+</button>
+
+<script>
+(function(){
+"use strict";
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var feed=$("#reading"), rail=$("#rail"), posEl=$("#pos"), bkEl=$("#bk"), avaEl=$("#ava");
+
+var ICON={
+ tick:'<svg class="tick" viewBox="0 0 24 24"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81C14.67 2.63 13.43 1.75 12 1.75s-2.67.88-3.34 2.19c-1.39-.46-2.9-.2-3.91.81s-1.27 2.52-.81 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.27 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.34-2.19c1.39.46 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/></svg>',
+ en:'<svg viewBox="0 0 24 24"><path d="M1.75 12c0-5.66 4.59-10.25 10.25-10.25S22.25 6.34 22.25 12 17.66 22.25 12 22.25c-1.53 0-2.98-.34-4.29-.94l-4.37 1.2 1.2-4.37C3.84 16.6 1.75 14.46 1.75 12zm10.25-8.25c-4.55 0-8.25 3.7-8.25 8.25 0 1.9.64 3.65 1.73 5.04l-.63 2.3 2.3-.63c1.39 1.09 3.14 1.73 5.04 1.73 4.55 0 8.25-3.7 8.25-8.25S16.55 3.75 12 3.75zM7.5 11h9v2h-9zm0-3.5h9v2h-9zm0 7h5.5v2H7.5z"/></svg>',
+ bar:'<svg viewBox="0 0 24 24"><path d="M8.75 21V3h2v18zM18 21V8.5h2V21zM4 21l.004-10h2L6 21zm9.248 0v-7h2v7z"/></svg>',
+ mark:'<svg viewBox="0 0 24 24"><path d="M4 4.5A2.5 2.5 0 016.5 2h11A2.5 2.5 0 0120 4.5v17.1l-8-4.57-8 4.57zm2.5-.5a.5.5 0 00-.5.5v13.65l6-3.43 6 3.43V4.5a.5.5 0 00-.5-.5z"/></svg>',
+ markOn:'<svg viewBox="0 0 24 24"><path d="M4 4.5A2.5 2.5 0 016.5 2h11A2.5 2.5 0 0120 4.5v17.1l-8-4.57-8 4.57z"/></svg>',
+ copy:'<svg viewBox="0 0 24 24"><path d="M16 3H5.5A2.5 2.5 0 003 5.5V18h2V5.5a.5.5 0 01.5-.5H16zm2.5 4h-9A2.5 2.5 0 007 9.5v10A2.5 2.5 0 009.5 22h9a2.5 2.5 0 002.5-2.5v-10A2.5 2.5 0 0018.5 7zm.5 12.5a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-10a.5.5 0 01.5-.5h9a.5.5 0 01.5.5z"/></svg>',
+ il:'<svg viewBox="0 0 24 24"><path d="M3 5h8v2H3zm0 4h5v2H3zm0 4h8v2H3zm0 4h5v2H3zM14 5h7v2h-7zm0 4h7v2h-7zm0 4h7v2h-7zm0 4h7v2h-7z"/></svg>',
+ say:'<svg viewBox="0 0 24 24"><path d="M13 3.5v17l-5.2-4H4a1 1 0 01-1-1v-7a1 1 0 011-1h3.8zm3.3 2.2 1.5-1.3a9 9 0 010 11.2l-1.5-1.3a7 7 0 000-8.6m-1.1 2.6 1.5-1.3a5 5 0 010 4l-1.5-1.3a3 3 0 000-1.4"/></svg>'
+};
+
+/* ---------- storage: the book, your place, your bookmarks ---------- */
+function db(){return new Promise(function(res,rej){
+  var r=indexedDB.open("lesefeed-hegel",1);
+  r.onupgradeneeded=function(){r.result.createObjectStore("kv")};
+  r.onsuccess=function(){res(r.result)}; r.onerror=function(){rej(r.error)};
+})}
+function kvGet(k){return db().then(function(d){return new Promise(function(res){
+  var t=d.transaction("kv","readonly"), q=t.objectStore("kv").get(k);
+  q.onsuccess=function(){res(q.result)}; q.onerror=function(){res(undefined)};
+})}).catch(function(){return undefined})}
+function kvSet(k,v){return db().then(function(d){return new Promise(function(res){
+  var t=d.transaction("kv","readwrite"); t.objectStore("kv").put(v,k);
+  t.oncomplete=function(){res()}; t.onerror=function(){res()};
+})}).catch(function(){})}
+function pref(k,v){k="hegel:"+k;try{ if(v===undefined) return localStorage.getItem(k);
+  localStorage.setItem(k,v); return v }catch(e){ return null }}
+
+/* ---------- EPUB -> posts ---------- */
+function textOf(n){return (n&&n.textContent||"").replace(/\s+/g," ").trim()}
+function stripNum(t){return String(t).replace(/^\s*\d+\.\s*/,"")}
+function sitNo(t){var m=/^\s*(\d+)\./.exec(t||"");return m?+m[1]:null}
+
+function parseDoc(doc,cards){
+  var h1=doc.querySelector("h1"), banner=doc.querySelector(".banner");
+  if(h1) cards.push({t:"head",title:textOf(h1),meta:textOf(banner)});
+  var units=doc.querySelectorAll("div.u");
+  if(units.length){
+    var stream=doc.querySelectorAll("div.u, h2, p.endmark, ol.how li, p.howp, p.en.s");
+    Array.prototype.forEach.call(stream,function(el){
+      if(!el.classList.contains("u") && el.closest && el.closest("div.u")) return;
+      if(el.tagName==="H2"){cards.push({t:"sub",title:textOf(el)});return}
+      if(el.classList.contains("endmark")){cards.push({t:"stop",title:textOf(el)});return}
+      if(el.tagName==="LI"||el.classList.contains("howp")||el.tagName==="P"){
+        cards.push({t:"plain",lines:[textOf(el)]});return}
+      var de=el.querySelector("p.de"), en=el.querySelector("p.en"),
+          il=el.querySelector("p.il"), gl=el.querySelectorAll("ul.gl li");
+      if(!de) return;
+      var lines=de.innerHTML.split(/<br\s*\/?>/i).map(function(x){
+        return x.replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<")
+                .replace(/&gt;/g,">").replace(/&#183;/g,"·").replace(/&#160;|&nbsp;/g," ").trim();
+      }).filter(Boolean);
+      if(el.classList.contains("closer")){
+        cards.push({t:"closer",en:en?textOf(en):"",lines:lines}); return;
+      }
+      cards.push({t:"unit",lines:lines,en:en?textOf(en):"",il:il?textOf(il):"",
+        gl:Array.prototype.map.call(gl,function(li){
+          var b=li.querySelector("b"), w=textOf(b);
+          return {w:w,g:textOf(li).replace(w,"").trim()};
+        })});
+    });
+    return;
+  }
+  Array.prototype.forEach.call(doc.querySelectorAll("p, blockquote"),function(p){
+    var t=textOf(p); if(t.length<2) return;
+    if(t.split(/\s+/).length<=55){cards.push({t:"plain",lines:[t]});return}
+    var sents=t.match(/[^.!?]+[.!?]*(\s|$)/g)||[t], buf="";
+    sents.forEach(function(s){ buf+=s;
+      if(buf.split(/\s+/).length>=38){cards.push({t:"plain",lines:[buf.trim()]});buf=""}});
+    if(buf.trim()) cards.push({t:"plain",lines:[buf.trim()]});
+  });
+}
+
+function parseEpub(buf){
+  return JSZip.loadAsync(buf).then(function(zip){
+    var P=new DOMParser();
+    return zip.file("META-INF/container.xml").async("string").then(function(c){
+      var rf=P.parseFromString(c,"application/xml").getElementsByTagName("rootfile")[0];
+      var opfPath=rf.getAttribute("full-path");
+      var base=opfPath.indexOf("/")>-1?opfPath.slice(0,opfPath.lastIndexOf("/")+1):"";
+      return zip.file(opfPath).async("string").then(function(o){
+        var opf=P.parseFromString(o,"application/xml");
+        var tEl=opf.getElementsByTagName("dc:title")[0]||opf.getElementsByTagName("title")[0];
+        var aEl=opf.getElementsByTagName("dc:creator")[0];
+        var items={};
+        Array.prototype.forEach.call(opf.getElementsByTagName("item"),function(it){
+          items[it.getAttribute("id")]={href:it.getAttribute("href"),type:it.getAttribute("media-type")||""}});
+        var order=Array.prototype.map.call(opf.getElementsByTagName("itemref"),function(r){
+          return items[r.getAttribute("idref")]}).filter(function(x){return x&&/html/.test(x.type)});
+        var cards=[];
+        return order.reduce(function(chain,it){
+          return chain.then(function(){
+            var f=zip.file(base+decodeURIComponent(it.href)); if(!f) return;
+            return f.async("string").then(function(html){
+              var d;
+              try{ d=P.parseFromString(html,"application/xhtml+xml");
+                   if(d.getElementsByTagName("parsererror").length) throw 0 }
+              catch(e){ d=P.parseFromString(html,"text/html") }
+              parseDoc(d,cards);
+            });
+          });
+        },Promise.resolve()).then(function(){
+          return {title:textOf(tEl)||"Untitled", author:textOf(aEl)||"", cards:cards};
+        });
+      });
+    });
+  });
+}
+
+/* ---------- state ---------- */
+var BOOK=null, at=0, head=0, CHUNK=25, marks={}, tab="reading";
+var SIZES=["0.95rem","1.0625rem","1.2rem"], si=+(pref("sz")||1);
+document.documentElement.style.setProperty("--sz",SIZES[si]);
+
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return c==="&"?"&amp;":c==="<"?"&lt;":c===">"?"&gt;":"&quot;"})}
+
+/* Every German word is tappable. The dictionary is 59,000 entries shipped
+   with the app, so a lookup costs nothing and works with no signal. */
+var DICT=null, FORMS=null;
+function words(line){
+  return esc(line).replace(/[A-Za-zÄÖÜäöüßéèêà]{2,}/g, function(w){
+    return '<span class="w">'+w+"</span>" });
+}
+function deumlaut(s){return s.replace(/ä/g,"a").replace(/ö/g,"o").replace(/ü/g,"u").replace(/ß/g,"ss")}
+function lookupWord(raw){
+  if(!DICT) return null;
+  var w=raw.toLowerCase().replace(/[^a-zäöüß]/g,"");
+  if(!w) return null;
+  var tries=[w, deumlaut(w)];
+  /* the book's own inflected forms, mapped to headwords when it was built */
+  if(FORMS && FORMS[w]) tries.push(FORMS[w]);
+  /* inflection, cheaply: German hangs its endings on the back */
+  ["e","en","em","er","es","n","s","nen","ern"].forEach(function(suf){
+    if(w.length>suf.length+2 && w.slice(-suf.length)===suf){
+      var stem=w.slice(0,-suf.length);
+      tries.push(stem, stem+"e", stem+"en", deumlaut(stem), deumlaut(stem)+"en");
+    }
+  });
+  if(/^ge.{3,}/.test(w)){ var p=w.slice(2); tries.push(p, p.replace(/t$/,"en"), p+"en") }
+  if(/^(ab|an|auf|aus|bei|ein|her|hin|mit|nach|vor|zu|über|unter|um|durch)/.test(w)){
+    tries.push(w.replace(/^(ab|an|auf|aus|bei|ein|her|hin|mit|nach|vor|zu|über|unter|um|durch)/,""));
+  }
+  /* an unfamiliar compound is usually two words you know */
+  for(var i=0;i<tries.length;i++){ var hit=DICT[tries[i]]; if(hit) return hit }
+  for(var cut=w.length-3; cut>=4; cut--){
+    var head=w.slice(0,cut), tail=w.slice(cut);
+    /* German glues compounds with a linking letter: Heer-es-weg */
+    var heads=[head, head+"e", head.replace(/(es|en|er|s|n|e)$/,"")];
+    var tails=[tail, tail.replace(/^(es|en|er|s|n)/,"")];
+    for(var x=0;x<heads.length;x++) for(var y=0;y<tails.length;y++){
+      var a=DICT[heads[x]], bb=DICT[tails[y]];
+      if(a&&bb&&heads[x].length>=3&&tails[y].length>=3)
+        return a.split(",")[0]+" + "+bb.split(",")[0];
+    }
+  }
+  return null;
+}
+var pop=null;
+function closePop(){ if(pop){ pop.remove(); pop=null } }
+function showWord(el){
+  closePop();
+  var raw=el.textContent, g=lookupWord(raw);
+  pop=document.createElement("div"); pop.className="pop";
+  pop.innerHTML="<b>"+esc(raw)+"</b>"+(g?"<span>"+esc(g)+"</span>":
+    '<span class="none">not in the dictionary</span>')+
+    '<button class="say" title="Hear it">'+ICON.say+"</button>";
+  document.body.appendChild(pop);
+  var r=el.getBoundingClientRect();
+  var x=Math.min(Math.max(8,r.left+r.width/2-pop.offsetWidth/2), innerWidth-pop.offsetWidth-8);
+  var above=r.top>pop.offsetHeight+16;
+  pop.style.left=x+"px";
+  pop.style.top=(above? r.top-pop.offsetHeight-8 : r.bottom+8)+scrollY+"px";
+  pop.querySelector(".say").addEventListener("click",function(e){ e.stopPropagation(); speak(raw) });
+}
+document.addEventListener("click",function(e){
+  var w=e.target.closest(".w");
+  if(w){ e.stopPropagation(); showWord(w); return }
+  if(!e.target.closest(".pop")) closePop();
+});
+document.addEventListener("scroll",function(){ closePop() },{passive:true});
+function handle(){ if(!BOOK) return "@book";
+  var a=(BOOK.author||BOOK.title||"book").toLowerCase().replace(/[^a-zäöü]+/g,"");
+  return "@"+(a.slice(0,16)||"book") }
+function initial(){ return (BOOK&&BOOK.title||"L").trim().charAt(0).toUpperCase() }
+function sittingOf(i){ for(var j=i;j>=0;j--){ var c=BOOK.cards[j];
+  if(c.t==="head") return {n:sitNo(c.title), title:stripNum(c.title), meta:c.meta||"", i:j} } return null }
+
+/* A streak is the only metric that matters for a book this long: 210 sittings
+   is finished by turning up, not by reading hard. */
+function today(){ return new Date().toISOString().slice(0,10) }
+function streak(){ try{ return JSON.parse(pref("streak")||'{"last":"","n":0}') }
+  catch(e){ return {last:"",n:0} } }
+function finishDay(){
+  var s=streak(), t=today();
+  if(s.last===t) return s;
+  var y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  s.n = (s.last===y ? (s.n||0)+1 : 1); s.last=t;
+  pref("streak",JSON.stringify(s)); return s;
+}
+
+/* ---------- rendering ---------- */
+function postShell(i,opts){
+  var d=document.createElement("article");
+  d.className="post"+(opts.cont?" cont":"")+(opts.last?" last":"");
+  d.dataset.i=i;
+  var g='<div class="gutter">'+(opts.cont?'<div class="thread"></div>':
+        '<div class="thread"></div><div class="ava">'+esc(initial())+"</div>")+"</div>";
+  d.innerHTML=g+'<div class="body"></div>';
+  if(opts.cont) d.querySelector(".gutter .ava")&&0;
+  return d;
+}
+function metaLine(ago){
+  return '<div class="meta"><b>'+esc(BOOK.title.slice(0,34))+"</b>"+ICON.tick+
+    '<span class="at">'+esc(handle())+'</span><span class="dot">·</span>'+
+    '<span class="ago">'+esc(ago)+"</span></div>";
+}
+function sitPos(i){
+  var s=sittingOf(i); if(!s) return "";
+  var end=BOOK.cards.length;
+  for(var j=s.i+1;j<BOOK.cards.length;j++){ if(BOOK.cards[j].t==="head"){ end=j; break } }
+  return (i-s.i)+"/"+(end-s.i-1);
+}
+function actRow(i,c){
+  var h='<div class="acts">';
+  if(c.en) h+='<button class="act en-t" data-a="en" title="Show the English">'+ICON.en+"<span>English</span></button>";
+  if(c.il) h+='<button class="act" data-a="il" title="Word for word">'+ICON.il+"</button>";
+  h+='<button class="act" data-a="say" title="Hear the German">'+ICON.say+"</button>";
+  h+='<button class="act mark'+(marks[i]?" on":"")+'" data-a="mark" title="Save this sentence">'+
+       (marks[i]?ICON.markOn:ICON.mark)+"</button>";
+  h+='<button class="act" data-a="copy" title="Copy the German">'+ICON.copy+"</button>";
+  return h+"</div>";
+}
+function cardEl(i){
+  var c=BOOK.cards[i], prev=BOOK.cards[i-1];
+  var cont = prev && prev.t!=="head" && prev.t!=="stop" && c.t!=="head" && c.t!=="stop";
+  var next=BOOK.cards[i+1];
+  var last = !next || next.t==="head" || next.t==="stop";
+
+  if(c.t==="stop"){
+    var s=document.createElement("div"); s.className="post stop"; s.dataset.i=i;
+    s.style.display="block";
+    var st=streak(), doneToday=st.last===today();
+    s.innerHTML="<b>"+esc(c.title)+"</b><span>Close it here. Tomorrow starts where you stopped.</span>"+
+      '<div style="margin-top:1rem"><button class="pill" data-done="1">'+
+      (doneToday?"Done today · day "+st.n:"Mark today done")+"</button></div>";
+    s.addEventListener("click",function(e){
+      if(!e.target.closest("[data-done]")) return;
+      var r=finishDay();
+      e.target.textContent="Done today · day "+r.n;
+    });
+    return s;
+  }
+  var d=postShell(i,{cont:cont,last:last});
+  var b=$(".body",d);
+  if(c.t==="head"){
+    var n=sitNo(c.title);
+    b.innerHTML=metaLine(n?"Sitting "+n:"Section")+
+      '<h2 class="ch">'+esc(stripNum(c.title))+"</h2>"+
+      (c.en?'<p class="ten">'+esc(c.en)+"</p>":"")+
+      (c.meta?'<p class="sub">'+esc(c.meta)+"</p>":"");
+    return d;
+  }
+  if(c.t==="sub"){
+    b.innerHTML='<h2 class="ch">'+esc(c.title)+"</h2>"+
+      (c.en?'<p class="ten">'+esc(c.en)+"</p>":""); return d;
+  }
+  if(c.t==="warmhead"){
+    d.className="post warmhead"; d.style.display="block";
+    d.innerHTML='<span class="eyebrow warm">'+esc(c.title)+"</span>";
+    return d;
+  }
+  if(c.t==="warm"){
+    /* plain German written for this reader, with the English kept visible --
+       this tier is a run-up, not a test */
+    b.innerHTML=(cont?"":metaLine("Vorlauf"))+
+      '<p class="de warm">'+c.lines.map(words).join(" ")+"</p>"+
+      '<p class="en open">'+esc(c.en)+"</p>"+
+      '<div class="acts"><button class="act" data-a="say">'+ICON.say+"</button>"+
+      '<button class="act mark'+(marks[i]?" on":"")+'" data-a="mark">'+(marks[i]?ICON.markOn:ICON.mark)+"</button></div>";
+    return d;
+  }
+  if(c.t==="closer"){
+    /* the English for the sentence you have just worked through, then that
+       sentence again -- the last step of the loop, without scrolling back */
+    b.innerHTML='<p class="en open">'+esc(c.en)+"</p>"+
+      '<p class="cap">now read it again</p>'+
+      '<p class="de echo">'+c.lines.map(words).join(" ")+"</p>"+
+      '<div class="acts"><button class="act" data-a="say" title="Hear it">'+ICON.say+"</button>"+
+      '<button class="act mark'+(marks[i]?" on":"")+'" data-a="mark">'+(marks[i]?ICON.markOn:ICON.mark)+"</button></div>";
+    return d;
+  }
+  var txt='<p class="de">'+c.lines.map(function(l,k){
+     return (k?'<span class="br">':"<span>")+words(l)+"</span>"}).join("")+"</p>";
+  /* the word-for-word crib stays out of sight: with it under the line you
+     read that instead of the German. It is there if a clause defeats you. */
+  if(c.il) txt+='<p class="il" hidden>'+esc(c.il)+"</p>";
+  var gl=(c.gl&&c.gl.length)?'<ul class="gl">'+c.gl.map(function(g){
+     return "<li><b>"+esc(g.w)+"</b> "+esc(g.g)+"</li>"}).join("")+"</ul>":"";
+  var en=c.en?'<p class="en" hidden>'+esc(c.en)+"</p>":"";
+  b.innerHTML=(cont?"":metaLine(sitLabel(i)))+txt+gl+en+(c.t==="plain"?"":actRow(i,c));
+  return d;
+}
+function sitLabel(i){ var s=sittingOf(i); return s&&s.n?("Sitting "+s.n):"now" }
+
+function paint(from,to,prepend){
+  var frag=document.createDocumentFragment();
+  for(var i=from;i<to;i++) frag.appendChild(cardEl(i));
+  if(prepend){ var y=document.body.scrollHeight;
+    feed.insertBefore(frag,feed.firstChild);
+    window.scrollBy(0,document.body.scrollHeight-y);
+  } else feed.appendChild(frag);
+  var btn=$("#earlierBtn");
+  if(head>0 && !btn){ var b=document.createElement("button");
+    b.className="earlier"; b.id="earlierBtn"; b.textContent="Show earlier";
+    b.addEventListener("click",function(){
+      var f=Math.max(0,head-CHUNK); if(f===head) return; var t=head; head=f; paint(f,t,true);
+      if(head<=0){ b.remove() }
+    });
+    feed.insertBefore(b,feed.firstChild);
+  }
+}
+function render(start){
+  feed.innerHTML="";
+  head=Math.max(0,start||0); at=head;
+  paint(head,Math.min(head+CHUNK,BOOK.cards.length));
+  mark();
+}
+function show(book,start){
+  BOOK=book; marks=(book.id&&JSON.parse(pref("mk:"+book.id)||"{}"))||{};
+  bkEl.textContent=book.title; avaEl.textContent=initial();
+  render(start||0); window.scrollTo(0,0);
+}
+function mark(){
+  if(!BOOK||!BOOK.cards.length) return;
+  /* no counts, no percentage, no page number: nothing that invites you to
+     measure how far you have got instead of reading */
+  var s=sittingOf(at), sk=streak();
+  posEl.textContent=(s&&s.n ? "Sitting "+s.n : (s? s.title.slice(0,24) : ""))
+                  + (sk.n ? " · day "+sk.n : "");
+}
+
+/* ---------- interaction ---------- */
+feed.addEventListener("click",function(e){
+  var btn=e.target.closest("button.act"); if(!btn) return;
+  var art=btn.closest(".post"), i=+art.dataset.i, c=BOOK.cards[i];
+  var a=btn.dataset.a;
+  if(a==="en"){ var en=$(".en",art); en.hidden=!en.hidden;
+    btn.classList.toggle("on",!en.hidden);
+    $("span",btn).textContent=en.hidden?"English":"Hide"; }
+  if(a==="mark"){ if(marks[i]) delete marks[i]; else marks[i]=1;
+    btn.classList.toggle("on",!!marks[i]);
+    btn.innerHTML=(marks[i]?ICON.markOn:ICON.mark);
+    if(BOOK.id) pref("mk:"+BOOK.id,JSON.stringify(marks)); }
+  if(a==="il"){ var il=$(".il",art); if(il){ il.hidden=!il.hidden; btn.classList.toggle("on",!il.hidden) } }
+  if(a==="say"){ speak((c.lines||[]).join(" "), btn) }
+  if(a==="copy"){ var txt=(c.lines||[]).join(" ");
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ flash(btn,"Copied") })
+        .catch(function(){ selectText($(".de",art)) });
+    } else selectText($(".de",art)); }
+});
+/* Reading aloud keeps you honest about where the clauses end, and the phone
+   already has a German voice. Silent failure is fine: not every device has one. */
+function speak(text,btn){
+  try{
+    if(!window.speechSynthesis) return;
+    if(speechSynthesis.speaking){ speechSynthesis.cancel(); if(btn) btn.classList.remove("on"); return }
+    var u=new SpeechSynthesisUtterance(text);
+    u.lang="de-DE"; u.rate=.85;
+    var v=(speechSynthesis.getVoices()||[]).filter(function(x){return /^de/i.test(x.lang)})[0];
+    if(v) u.voice=v;
+    if(btn){ btn.classList.add("on"); u.onend=u.onerror=function(){btn.classList.remove("on")} }
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function note(msg){
+  var n=document.createElement("div"); n.className="note"; n.textContent=msg;
+  document.body.appendChild(n);
+  setTimeout(function(){ n.classList.add("go") },4000);
+  setTimeout(function(){ n.remove() },4600);
+}
+function flash(btn,msg){
+  var old=btn.innerHTML; btn.innerHTML="<span>"+msg+"</span>";
+  setTimeout(function(){btn.innerHTML=old},1200);
+}
+function selectText(el){ try{ var r=document.createRange(); r.selectNodeContents(el);
+  var s=getSelection(); s.removeAllRanges(); s.addRange(r) }catch(e){} }
+
+var tick=false;
+window.addEventListener("scroll",function(){
+  if(tick||tab!=="reading") return; tick=true;
+  requestAnimationFrame(function(){
+    tick=false; if(!BOOK) return;
+    var kids=feed.querySelectorAll(".post"), top=innerHeight*0.3;
+    for(var i=0;i<kids.length;i++){
+      var r=kids[i].getBoundingClientRect();
+      if(r.bottom>top){ at=+kids[i].dataset.i; break }
+    }
+    mark(); if(BOOK.id) kvSet("pos:"+BOOK.id,at);
+    var last=kids[kids.length-1];
+    if(last && last.getBoundingClientRect().top<innerHeight*2.2){
+      var n=+last.dataset.i+1;
+      if(n<BOOK.cards.length) paint(n,Math.min(n+CHUNK,BOOK.cards.length));
+    }
+  });
+},{passive:true});
+
+document.addEventListener("keydown",function(e){
+  if(/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)) return;
+  if(e.key==="j"||e.key==="ArrowDown"){scrollBy({top:innerHeight*.45,behavior:"smooth"});e.preventDefault()}
+  if(e.key==="k"||e.key==="ArrowUp"){scrollBy({top:-innerHeight*.45,behavior:"smooth"});e.preventDefault()}
+});
+
+$("#aa").addEventListener("click",function(){
+  si=(si+1)%SIZES.length; pref("sz",si);
+  document.documentElement.style.setProperty("--sz",SIZES[si]);
+});
+
+/* ---------- tabs ---------- */
+$$("nav button").forEach(function(b){
+  b.addEventListener("click",function(){
+    tab=b.dataset.v;
+    $$("nav button").forEach(function(x){x.setAttribute("aria-selected",String(x===b))});
+    $("#reading").hidden=tab!=="reading";
+    $("#sittings").hidden=tab!=="sittings";
+    $("#saved").hidden=tab!=="saved";
+    if(tab==="sittings") listSittings();
+    if(tab==="saved") listSaved();
+    if(tab==="reading") window.scrollTo(0,0);
+  });
+});
+function jump(i){
+  $$("nav button").forEach(function(x){x.setAttribute("aria-selected",String(x.dataset.v==="reading"))});
+  tab="reading"; $("#reading").hidden=false; $("#sittings").hidden=true; $("#saved").hidden=true;
+  render(i); window.scrollTo(0,0);
+}
+function listSittings(){
+  var el=$("#sittings"); el.innerHTML="";
+  if(!BOOK) return;
+  var rb=document.createElement("button"); rb.className="row"; rb.style.color="var(--accent)";
+  rb.innerHTML='<span class="n">\u21bb</span><span class="t"><b>Reload the book</b>'+
+    "<span>Fetch the newest build. Your place and bookmarks are kept.</span></span>";
+  rb.addEventListener("click",function(){
+    fetch("book.json",{cache:"reload"}).then(function(r){return r.json()}).then(function(fresh){
+      var start=adopt(fresh,BOOK,at); if(start===null) start=at;
+      kvSet("book",fresh); kvSet("pos:"+fresh.id,start);
+      show(fresh,start); note("Reloaded \u00b7 build "+(fresh.v||"?"));
+    }).catch(function(){ note("Could not reach the book file.") });
+  });
+  el.appendChild(rb);
+  var heads=[];
+  BOOK.cards.forEach(function(c,i){ if(c.t==="head") heads.push({c:c,i:i}) });
+  if(!heads.length){ el.innerHTML='<p class="empty">This book has no chapters to list.</p>'; return }
+  heads.forEach(function(h,k){
+    var end=(heads[k+1]?heads[k+1].i:BOOK.cards.length);
+    var b=document.createElement("button"); b.className="row";
+    var n=sitNo(h.c.title);
+    var state = at>=end ? "read" : (at>=h.i ? "here" : "");
+    b.innerHTML='<span class="n">'+(n?n:k+1)+"</span><span class='t'><b>"+esc(stripNum(h.c.title))+
+      "</b><span>"+esc(h.c.meta||((end-h.i)+" posts"))+"</span></span>"+
+      (state==="here"?'<span class="badge">here</span>':state==="read"?'<span class="badge" style="color:var(--dim);border-color:var(--line)">read</span>':"");
+    b.addEventListener("click",function(){jump(h.i)});
+    el.appendChild(b);
+  });
+}
+function listSaved(){
+  var el=$("#saved"); el.innerHTML="";
+  var keys=Object.keys(marks).map(Number).sort(function(a,b){return a-b});
+  if(!BOOK||!keys.length){
+    el.innerHTML='<p class="empty">Nothing saved yet. Tap the bookmark on a sentence<br>and it waits for you here.</p>';
+    return;
+  }
+  var bar=document.createElement("button");
+  bar.className="row"; bar.style.color="var(--accent)";
+  bar.innerHTML='<span class="n">'+keys.length+'</span><span class="t"><b>Copy all for Anki</b>'+
+    "<span>German, English and the glossed words, tab-separated</span></span>";
+  bar.addEventListener("click",function(){
+    var tsv=keys.map(function(i){ var c=BOOK.cards[i];
+      return [(c.lines||[]).join(" "), c.en||"",
+              (c.gl||[]).map(function(g){return g.w+" "+g.g}).join("; ")].join("\t") }).join("\n");
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(tsv).then(function(){ bar.querySelector("b").textContent="Copied" })
+        .catch(function(){ bar.querySelector("b").textContent="Could not copy — select the text below" });
+  });
+  el.appendChild(bar);
+  keys.forEach(function(i){
+    var c=BOOK.cards[i]; if(!c) return;
+    var s=sittingOf(i);
+    var b=document.createElement("button"); b.className="row";
+    b.innerHTML='<span class="n">'+(s&&s.n?s.n:"·")+'</span><span class="t"><div class="snip">'+
+      esc((c.lines||[]).join(" ").slice(0,160))+'</div><span>'+
+      esc(c.gl&&c.gl.length?c.gl.map(function(g){return g.w}).join(" · "):"")+"</span></span>";
+    b.addEventListener("click",function(){jump(i)});
+    el.appendChild(b);
+  });
+}
+
+/* ---------- opening a file ---------- */
+var fileEl=$("#file");
+$("#fab").addEventListener("click",function(){fileEl.click()});
+fileEl.addEventListener("change",function(){ if(fileEl.files[0]) load(fileEl.files[0]) });
+["dragenter","dragover"].forEach(function(ev){document.addEventListener(ev,function(e){
+  e.preventDefault(); var d=$(".drop"); if(d) d.classList.add("on")})});
+["dragleave","drop"].forEach(function(ev){document.addEventListener(ev,function(e){
+  e.preventDefault(); var d=$(".drop"); if(d) d.classList.remove("on")})});
+document.addEventListener("drop",function(e){
+  var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) load(f)});
+
+function load(file){
+  bkEl.textContent="Opening…"; posEl.textContent=file.name;
+  file.arrayBuffer().then(parseEpub).then(function(b){
+    if(!b.cards.length) throw new Error("No readable text inside that EPUB.");
+    b.id=file.name+":"+file.size;
+    kvSet("book",b);
+    return kvGet("pos:"+b.id).then(function(p){ show(b,p||0) });
+  }).catch(function(err){
+    bkEl.textContent="Lesefeed"; posEl.textContent="";
+    BOOK=SAMPLE; render(0);
+    var w=document.createElement("div"); w.className="post"; w.style.display="block";
+    w.innerHTML='<b>That file would not open.</b><p class="sub">'+
+      esc(err&&err.message||"Unreadable EPUB")+" Try another EPUB.</p>";
+    feed.insertBefore(w,feed.firstChild);
+  });
+}
+
+/* ---------- opening state ---------- */
+var SAMPLE={title:"Kritik der reinen Vernunft",author:"Immanuel Kant",cards:[
+ {t:"intro"},
+ {t:"head",title:"1. Vorrede zur zweiten Auflage",
+  meta:"about 17 minutes · One sentence at a time · German, words, English"},
+ {t:"unit",
+  lines:["Ob die Bearbeitung der Erkenntnisse",
+         "die zum Vernunftgeschäfte gehören, den sicheren Gang einer Wissenschaft gehe oder nicht",
+         "das läßt sich bald aus dem Erfolg beurteilen."],
+  gl:[{w:"Bearbeitung",g:"treatment, working-out"},{w:"Erkenntnisse",g:"cognition, knowledge"},
+      {w:"Vernunftgeschäfte",g:"the business of reason"},{w:"Gang",g:"course, progress"},
+      {w:"Wissenschaft",g:"science"},{w:"beurteilen",g:"to assess, judge"}],
+  en:"Whether the treatment of that portion of our knowledge which lies within the province of pure reason advances with that undeviating certainty which characterizes the progress of science, we shall be at no loss to determine."},
+ {t:"unit",
+  lines:["Wenn sie nach viel gemachten Anstalten und Zurüstungen",
+         "sobald es zum Zweck kommt, in Stecken gerät oder",
+         "um diesen zu erreichen, öfters wieder zurückgehen und einen andern Weg einschlagen muß;"],
+  gl:[{w:"Anstalten",g:"arrangement, preparation"},{w:"Zurüstungen",g:"preparation, equipping"},
+      {w:"einschlagen",g:"to hammer in, smash, choose"}],
+  en:"If we find those engaged in metaphysical pursuits unable to come to an understanding as to the method they ought to follow; if we find them, after the most elaborate preparations, invariably brought to a stand before the goal is reached, and compelled to retrace their steps and strike into fresh paths —"},
+ {t:"unit",
+  lines:["so kann man immer überzeugt sein",
+         "daß ein solches Studium bei weitem noch nicht den sicheren Gang einer Wissenschaft eingeschlagen",
+         "sondern ein bloßes Herumtappen sei."],
+  gl:[{w:"überzeugt",g:"convinced"},{w:"bloßes",g:"mere, merely"},{w:"Herumtappen",g:"groping about"}],
+  en:"— we may then feel quite sure that they are far from having attained to the certainty of scientific progress, and may rather be said to be merely groping about in the dark."},
+ {t:"stop",title:"— end of sitting 1 —"}
+]};
+
+var _card=cardEl;
+cardEl=function(i){
+  var c=BOOK.cards[i];
+  if(c.t!=="intro") return _card(i);
+  var d=document.createElement("article");
+  d.className="post intro"; d.dataset.i=i;
+  d.innerHTML='<div class="gutter"><div class="thread"></div><div class="ava">L</div></div>'+
+    '<div class="body"><div class="meta"><b>Lesefeed</b>'+ICON.tick+
+    '<span class="at">@lesefeed</span><span class="dot">·</span><span class="ago">pinned</span></div>'+
+    "<p>Open any EPUB with the blue button, or drop one anywhere on this page. "+
+    "Each sitting becomes a thread, and your place and saved sentences stay in this browser. "+
+    "Press j and k to move.</p>"+
+    "<p>Below is the opening of the staged Kant reader: German first, the words that "+
+    "blocked you underneath, the English only when you ask for it.</p>"+
+    '<div class="drop">Drop an .epub here</div>'+
+    '<button class="pill" id="pickTop">Open an EPUB</button></div>';
+  setTimeout(function(){ var p=$("#pickTop"); if(p) p.addEventListener("click",function(){fileEl.click()}) },0);
+  return d;
+};
+
+/* A link ending #s42 opens at sitting 42. If this browser ever loses its
+   storage, that is how you get back without hunting. */
+function hashStart(book){
+  var m=/^#s(\d+)$/.exec(location.hash||""); if(!m) return null;
+  var want=+m[1], found=null;
+  book.cards.forEach(function(c,i){ if(found===null&&c.t==="head"&&sitNo(c.title)===want) found=i });
+  return found;
+}
+/* the tap dictionary loads in the background; the page is readable without it */
+fetch("dict.json").then(function(r){ return r.ok?r.json():null })
+  .then(function(d){ DICT=d }).catch(function(){});
+fetch("forms.json").then(function(r){ return r.ok?r.json():null })
+  .then(function(f){ FORMS=f }).catch(function(){});
+
+function sittingNumberAt(book,i){
+  for(var j=i;j>=0;j--){ if(book.cards[j].t==="head") return sitNo(book.cards[j].title) }
+  return null;
+}
+function headOfSitting(book,n){
+  for(var j=0;j<book.cards.length;j++){
+    if(book.cards[j].t==="head" && sitNo(book.cards[j].title)===n) return j }
+  return 0;
+}
+/* A rebuild renumbers the sittings, so a saved sitting number means nothing.
+   What does survive is how far into the book you had read, counted in German
+   words. Find that point in the new build and start at the sitting holding it. */
+function wordsUpTo(book,i){
+  var n=0;
+  for(var j=0;j<i&&j<book.cards.length;j++){
+    var c=book.cards[j];
+    if(c.t==="unit"||c.t==="plain"){
+      var ls=c.lines||[];
+      for(var k=0;k<ls.length;k++) n+=ls[k].split(/\s+/).length;
+    }
+  }
+  return n;
+}
+function adopt(fresh,saved,pos){
+  if(!saved || saved.v===fresh.v) return null;
+  var target=wordsUpTo(saved,pos||0);
+  if(!target) return 0;
+  var n=0, hit=fresh.cards.length-1;
+  for(var j=0;j<fresh.cards.length;j++){
+    var c=fresh.cards[j];
+    if(c.t==="unit"||c.t==="plain"){
+      var ls=c.lines||[];
+      for(var k=0;k<ls.length;k++) n+=ls[k].split(/\s+/).length;
+    }
+    if(n>=target){ hit=j; break }
+  }
+  /* start at the top of whatever sitting that lands in */
+  for(var b=hit;b>=0;b--) if(fresh.cards[b].t==="head") return b;
+  return 0;
+}
+kvGet("book").then(function(saved){
+  if(saved&&saved.cards&&saved.cards.length){
+    return kvGet("pos:"+saved.id).then(function(pos){
+      return fetch("book.json").then(function(r){ return r.ok?r.json():null }).then(function(fresh){
+        if(fresh && fresh.v && saved.v!==fresh.v){
+          var start=adopt(fresh,saved,pos);
+          kvSet("book",fresh); kvSet("pos:"+fresh.id,start||0);
+          show(fresh,start||0);
+          note("Updated \u00b7 picking up at sitting "+
+               (sittingNumberAt(fresh,start||0)||1)+", where you had read to.");
+          return;
+        }
+        var h=hashStart(saved);
+        show(saved, h!==null?h:(pos||0));
+      }).catch(function(){
+        var h=hashStart(saved); show(saved, h!==null?h:(pos||0));
+      });
+    });
+  }
+  return fetch("book.json").then(function(r){ return r.json() }).then(function(b){
+    kvSet("book",b);
+    return kvGet("pos:"+b.id).then(function(p){
+      var h=hashStart(b); show(b, h!==null?h:(p||0));
+    });
+  });
+}).catch(function(){
+  BOOK=SAMPLE; bkEl.textContent=SAMPLE.title; avaEl.textContent="K"; render(0);
+  posEl.textContent="sample";
+});
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
+})();
+</script>
+
+</body>
+</html>
