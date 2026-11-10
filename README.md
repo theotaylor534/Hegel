@@ -15,7 +15,7 @@ phone. **Install on iPhone:** open the URL in Safari, Share, *Add to Home Screen
 | file | what it is |
 | --- | --- |
 | `index.html` | the whole app (same reader as the Kant one, with its own storage) |
-| `book.json` | the reader, pre-parsed (174289 German words, build 20261110-1708) |
+| `book.json` | the reader, pre-parsed (174289 German words, build 20261110-2130) |
 | `dict.json`, `forms.json` | the tap dictionary and the map from inflected forms to headwords |
 | `jszip.min.js` | lets you open any other EPUB from inside the app |
 | `sw.js` | caches everything for offline use |

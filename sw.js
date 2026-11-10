@@ -1,6 +1,6 @@
 /* Cache everything on first open, then run from the cache, so the app works
    with no signal. Only this app's own old caches are cleared on update. */
-var V="lesefeed-hegel-20261110-1708";
+var V="lesefeed-hegel-20261110-2130";
 var SHELL=["./","index.html","jszip.min.js","book.json","dict.json","forms.json","manifest.webmanifest",
            "icon-192.png","icon-512.png","apple-touch-icon.png"];
 self.addEventListener("install",function(e){
